@@ -509,7 +509,7 @@ fromCString cstring = do
         pa <- unsafeFreezePrimArray mpa
         return (CBytes pa)
 
--- | Same with 'fromCString', but only take at most N bytes.
+-- | Same with 'fromCString', but only take at most N bytes(not including \\NUL byte).
 --
 -- Result will be trimmed down to first @\\NUL@ byte if there's any.
 fromCStringN :: CString -> Int -> IO CBytes
