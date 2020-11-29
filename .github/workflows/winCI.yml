@@ -5,14 +5,9 @@ jobs:
     runs-on: windows-latest
     strategy:
       matrix:
-        ghc: ['8.10.2']
-        cabal: ['2.4.1.0', '3.2.0.0']  
-        exclude:
-          # GHC 8.8+ only works with cabal v3+
-          - ghc: 8.8.4
-            cabal: 2.4.1.0
-          - ghc: 8.10.2
-            cabal: 2.4.1.0
+        ghc: ['8.10.2'] # older GHC/cabal have linker bugs
+        cabal: ['3.2.0.0']  
+
     name: Haskell GHC ${{ matrix.ghc }} sample
     env:
         CONFIG: "--enable-tests --enable-benchmarks"
