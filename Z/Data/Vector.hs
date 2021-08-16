@@ -80,11 +80,13 @@ module Z.Data.Vector (
   , null
   , length
   , append
-  , map, map', imap', traverseVec, traverseWithIndex, traverseVec_, traverseWithIndex_
+  , map, map', imap', traverse, traverseWithIndex, traverse_, traverseWithIndex_
+  , mapM, mapM_, forM, forM_
   , foldl', ifoldl', foldl1', foldl1Maybe'
   , foldr', ifoldr', foldr1', foldr1Maybe'
+  , shuffle, permutations
     -- ** Special folds
-  , concat, concatMap
+  , concat, concatR, concatMap
   , maximum, minimum, maximumMaybe, minimumMaybe
   , sum
   , count
@@ -96,7 +98,7 @@ module Z.Data.Vector (
   , mapAccumR
   -- ** Generating and unfolding vector
   , replicate
-  , replicateMVec
+  , replicateM
   , cycleN
   , unfoldr
   , unfoldrN

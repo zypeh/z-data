@@ -34,7 +34,7 @@ module Z.Data.JSON
   , decode, decode', decodeText, decodeText'
   , ParseChunks, decodeChunk, decodeChunks
   , encode, encodeChunks, encodeText
-  , prettyJSON, prettyValue
+  , prettyJSON, prettyValue, prettyJSON', prettyValue'
     -- * parse into JSON Value
   , parseValue, parseValue'
   -- * Generic functions
@@ -72,6 +72,7 @@ import qualified Z.Data.Builder                 as B
 import           Z.Data.JSON.Base
 import qualified Z.Data.Parser                  as P
 import qualified Z.Data.Text                    as T
+import           Data.UUID.Types                (UUID)
 
 -- $use
 --
@@ -206,7 +207,7 @@ trainCase = symbCase '-'
 --------------------------------------------------------------------------------
 
 symbCase :: Char -> String -> T.Text
-{-# INLINE symbCase #-}
+{-# INLINABLE symbCase #-}
 symbCase sym =  T.pack . go . applyFirst toLower
   where
     go []                       = []
@@ -391,6 +392,16 @@ instance JSON DayOfWeek where
     encodeJSON Saturday  = "\"Saturday\""
     encodeJSON Sunday    = "\"Sunday\""
 
+instance JSON UUID where
+    {-# INLINE fromValue #-}
+    fromValue = withText "UUID" $ \ t ->
+        case P.parse' (P.uuid <* P.endOfInput) (T.getUTF8Bytes t) of
+            Left err -> fail' $ "could not parse UUID: " <> T.toText err
+            Right r  -> return r
+    {-# INLINE toValue #-}
+    toValue = String . B.unsafeBuildText . B.quotes . B.uuid
+    {-# INLINE encodeJSON #-}
+    encodeJSON = B.quotes . B.uuid
 
 --------------------------------------------------------------------------------
 

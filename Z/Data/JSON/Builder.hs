@@ -132,6 +132,7 @@ string = T.escapeTextJSON
 -- @
 --
 prettyValue :: Value -> B.Builder ()
+{-# INLINABLE prettyValue #-}
 prettyValue = prettyValue' 4 0
 
 
@@ -149,7 +150,7 @@ prettyValue' _ !ind (Bool False) = B.word8N ind SPACE >> "false"
 prettyValue' _ !ind _            = B.word8N ind SPACE >> "null"
 
 arrayPretty :: Int -> Int -> V.Vector Value -> B.Builder ()
-{-# INLINE arrayPretty #-}
+{-# INLINABLE arrayPretty #-}
 arrayPretty idpl ind vs
     | V.null vs = B.word8N ind SPACE >> B.square (return ())
     | otherwise = do
@@ -166,7 +167,7 @@ arrayPretty idpl ind vs
     ind' = ind + idpl
 
 objectPretty :: Int -> Int -> V.Vector (T.Text, Value) -> B.Builder ()
-{-# INLINE objectPretty #-}
+{-# INLINABLE objectPretty #-}
 objectPretty idpl ind kvs
     | V.null kvs = B.word8N ind SPACE >> B.curly (return ())
     | otherwise = do

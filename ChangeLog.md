@@ -1,5 +1,35 @@
 # Revision history for Z-Data
 
+## 1.1.0.0  -- 2021-07-15
+
+* Fix building issues on ARM platform.
+* Add `UUID` builders and parsers(both textual binary).
+* Add more `PrimUnlifed` instances to `Z.Data.Array.UnliftedArray`.
+* Add `doubleMutableArr` to `Z.Data.Array`, useful in some buffer building logic.
+* Add `shuffle` and `permutations` to `Z.Data.Vector` and `Z.Data.Text`.
+* Add `prettyJSON'` to `Z.Data.JSON` with custom indentation.
+* Change `CBytes` 's JSON instance to write `__base64` field(instead of `base64` field) when not UTF8 encoded.
+* Add missing type alias `UnliftedIORef` for `UnliftedRef RealWorld`.
+
+## 1.0.0.1  -- 2021-07-08
+
+* Fix a regression in `match` parsing combinator where matched chunk is returned instead of precise matched input.
+
+## 1.0.0.0  -- 2021-07-05
+
+* Clean up various `RULES` and `INLINE` pragmas, improve building time a little.
+* Simplify `Z.Data.PrimRef` to use `PrimMonad`.
+* Add `encodeXXX/encodeXXXLE/encodeXXXBE`(where `XXX` is a primitive type) to `Z.Data.Builder`.
+* Add `check-array-bound` build flag to enable bound check in `Z.Data.Array` module, `Z.Data.Array.Checked` is removed.
+* Add `concatR` to `Z.Data.Vector` and `Z.Data.Text`, which is useful to concat the result of an accumulator style recursive function.
+* Improve date builder and parser by introducing faster common case path.  
+
+## 0.9.0.0  -- 2021-07-01
+
+* Add `decodeXXX/deocodeXXXLE/decodeXXXBE`(where `XXX` is a primitive type) to `Z.Data.Parser`.
+* Rename `replicateMVec/traveseVec/traveseVec_` tp `replicateM/travese/travese_`, fix related `PrimMonad` rules not firing issue.
+* Add a faster `sciToDouble` based on https://github.com/lemire/fast_double_parser, improve `double/double'` parser.
+
 ## 0.8.8.0  -- 2021-06-13
 
 * Add `withCPtrForever` and `addCPtrDep` to `Z.Foreign.CPtr` module.

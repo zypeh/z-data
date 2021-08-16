@@ -76,7 +76,7 @@ mergeSort :: forall v a. (Vec v a, Ord a) => v a -> v a
 mergeSort = mergeSortBy compare
 
 mergeSortBy :: forall v a. Vec v a => (a -> a -> Ordering) -> v a -> v a
-{-# INLINE mergeSortBy #-}
+{-# INLINABLE mergeSortBy #-}
 mergeSortBy cmp vec@(Vec _ _ l)
     | l <= mergeTileSize = insertSortBy cmp vec
     | otherwise = runST (do
@@ -88,7 +88,6 @@ mergeSortBy cmp vec@(Vec _ _ l)
         return $! fromArr w 0 l)
   where
     firstPass :: forall s. v a -> Int -> MArr (IArray v) s a -> ST s ()
-    {-# INLINABLE firstPass #-}
     firstPass !v !i !marr
         | i >= l     = return ()
         | otherwise = do
@@ -97,7 +96,6 @@ mergeSortBy cmp vec@(Vec _ _ l)
             firstPass rest (i+mergeTileSize) marr
 
     mergePass :: forall s. MArr (IArray v) s a -> MArr (IArray v) s a -> Int -> ST s (IArray v a)
-    {-# INLINABLE mergePass #-}
     mergePass !w1 !w2 !blockSiz
         | blockSiz >= l = unsafeFreezeArr w1
         | otherwise     = do
@@ -105,7 +103,6 @@ mergeSortBy cmp vec@(Vec _ _ l)
             mergePass w2 w1 (blockSiz*2) -- swap worker array and continue merging
 
     mergeLoop :: forall s. MArr (IArray v) s a -> MArr (IArray v) s a -> Int -> Int -> ST s ()
-    {-# INLINABLE mergeLoop #-}
     mergeLoop !src !target !blockSiz !i
         | i >= l-blockSiz =                 -- remaining elements less than a block
             if i >= l
@@ -117,7 +114,6 @@ mergeSortBy cmp vec@(Vec _ _ l)
             mergeLoop src target blockSiz mergeEnd
 
     mergeBlock :: forall s. MArr (IArray v) s a -> MArr (IArray v) s a -> Int -> Int -> Int -> Int -> Int -> ST s ()
-    {-# INLINABLE mergeBlock #-}
     mergeBlock !src !target !leftEnd !rightEnd !i !j !k = do
         lv <- readArr src i
         rv <- readArr src j
@@ -139,7 +135,7 @@ mergeSortBy cmp vec@(Vec _ _ l)
 
 -- | The mergesort tile size, @mergeTileSize = 8@.
 mergeTileSize :: Int
-{-# INLINE mergeTileSize #-}
+{-# INLINABLE mergeTileSize #-}
 mergeTileSize = 8
 
 -- | /O(n^2)/ Sort vector based on element's 'Ord' instance with simple
@@ -148,7 +144,7 @@ mergeTileSize = 8
 -- This is a stable sort. O(n) extra space are needed,
 -- which will be freezed into result vector.
 insertSort :: (Vec v a, Ord a) => v a -> v a
-{-# INLINE insertSort #-}
+{-# INLINABLE insertSort #-}
 insertSort = insertSortBy compare
 
 insertSortBy :: Vec v a => (a -> a -> Ordering) -> v a -> v a
@@ -171,7 +167,7 @@ insertSortToMArr cmp (Vec arr s l) moff marr = go s
           | otherwise = case indexArr' arr i of
                (# x #) -> do insert x (i+doff)
                              go (i+1)
-    insert !temp !i
+    insert temp !i
         | i <= moff = do
             writeArr marr moff temp
         | otherwise = do
@@ -307,7 +303,6 @@ radixSort v@(Vec arr s l)
     buktSiz = bucketSize (undefined :: a)
     !end = s + l
 
-    {-# INLINABLE firstCountPass #-}
     firstCountPass :: forall s. IArray v a -> MutablePrimArray s Int -> Int -> ST s ()
     firstCountPass !arr' !bucket !i
         | i >= end  = return ()
@@ -318,7 +313,6 @@ radixSort v@(Vec arr s l)
                 writeArr bucket r (c+1)
                 firstCountPass arr' bucket (i+1)
 
-    {-# INLINABLE accumBucket #-}
     accumBucket :: forall s. MutablePrimArray s Int -> Int -> Int -> Int -> ST s ()
     accumBucket !bucket !bsiz !i !acc
         | i >= bsiz = return ()
@@ -327,7 +321,6 @@ radixSort v@(Vec arr s l)
             writeArr bucket i acc
             accumBucket bucket bsiz (i+1) (acc+c)
 
-    {-# INLINABLE firstMovePass #-}
     firstMovePass :: forall s. IArray v a -> Int -> MutablePrimArray s Int -> MArr (IArray v) s a -> ST s ()
     firstMovePass !arr' !i !bucket !w
         | i >= end  = return ()
@@ -339,7 +332,6 @@ radixSort v@(Vec arr s l)
                 writeArr w c x
                 firstMovePass arr' (i+1) bucket w
 
-    {-# INLINABLE radixLoop #-}
     radixLoop :: forall s. MArr (IArray v) s a -> MArr (IArray v) s a -> MutablePrimArray s Int -> Int -> Int -> ST s ((IArray v) a)
     radixLoop !w1 !w2 !bucket !bsiz !pass
         | pass >= passSiz-1 = do
@@ -355,7 +347,6 @@ radixSort v@(Vec arr s l)
             movePass w1 bucket pass w2 0
             radixLoop w2 w1 bucket bsiz (pass+1)
 
-    {-# INLINABLE countPass #-}
     countPass :: forall s. MArr (IArray v) s a -> MutablePrimArray s Int -> Int -> Int -> ST s ()
     countPass !marr !bucket !pass !i
         | i >= l  = return ()
@@ -366,7 +357,6 @@ radixSort v@(Vec arr s l)
                 writeArr bucket r (c+1)
                 countPass marr bucket pass (i+1)
 
-    {-# INLINABLE movePass #-}
     movePass :: forall s. MArr (IArray v) s a -> MutablePrimArray s Int -> Int -> MArr (IArray v) s a -> Int -> ST s ()
     movePass !src !bucket !pass !target !i
         | i >= l  = return ()
@@ -378,7 +368,6 @@ radixSort v@(Vec arr s l)
                 writeArr target c x
                 movePass src bucket pass target (i+1)
 
-    {-# INLINABLE lastCountPass #-}
     lastCountPass :: forall s. MArr (IArray v) s a -> MutablePrimArray s Int -> Int -> ST s ()
     lastCountPass !marr !bucket !i
         | i >= l  = return ()
@@ -389,7 +378,6 @@ radixSort v@(Vec arr s l)
                 writeArr bucket r (c+1)
                 lastCountPass marr bucket (i+1)
 
-    {-# INLINABLE lastMovePass #-}
     lastMovePass :: forall s. MArr (IArray v) s a -> MutablePrimArray s Int -> MArr (IArray v) s a -> Int -> ST s ()
     lastMovePass !src !bucket !target !i
         | i >= l  = return ()
@@ -457,7 +445,7 @@ radixSortFloat v =  castVector (radixSort (castVector v :: PrimVector RadixFloat
 --
 -- Use this function on a sorted vector will have the same effects as 'nub'.
 mergeDupAdjacent :: forall v a. (Vec v a, Eq a) => v a -> v a
-{-# INLINE mergeDupAdjacent #-}
+{-# INLINABLE mergeDupAdjacent #-}
 mergeDupAdjacent = mergeDupAdjacentBy (==) const
 
 -- | Merge duplicated adjacent element, prefer left element.
@@ -466,14 +454,14 @@ mergeDupAdjacentLeft :: forall v a. Vec v a
                      -> v a
                      -> v a
 mergeDupAdjacentLeft eq = mergeDupAdjacentBy eq const
-{-# INLINE mergeDupAdjacentLeft #-}
+{-# INLINABLE mergeDupAdjacentLeft #-}
 
 -- | Merge duplicated adjacent element, prefer right element.
 mergeDupAdjacentRight :: forall v a. Vec v a
                       => (a -> a -> Bool)  -- ^ equality tester, @\ left right -> eq left right@
                       -> v a
                       -> v a
-{-# INLINE mergeDupAdjacentRight #-}
+{-# INLINABLE mergeDupAdjacentRight #-}
 mergeDupAdjacentRight eq = mergeDupAdjacentBy eq (\ _ x -> x)
 
 -- | Merge duplicated adjacent element, based on a equality tester and a merger function.

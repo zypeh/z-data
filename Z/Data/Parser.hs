@@ -30,7 +30,7 @@ module Z.Data.Parser
   , Parser
   , (<?>)
     -- * Running a parser
-  , parse, parse', parseChunk, ParseChunks, parseChunks, finishParsing
+  , parse, parse', parseChunk, parseChunkList, ParseChunks, parseChunks, finishParsing
   , runAndKeepTrack, match
     -- * Basic parsers
   , ensureN, endOfInput, atEnd, currentChunk
@@ -41,7 +41,7 @@ module Z.Data.Parser
   , scan, scanChunks, peekMaybe, peek, satisfy, satisfyWith
   , anyWord8, word8, char8, anyChar8, anyCharUTF8, charUTF8, char7, anyChar7
   , skipWord8, endOfLine, skip, skipWhile, skipSpaces
-  , take, takeN, takeTill, takeWhile, takeWhile1, takeRemaining, bytes, bytesCI
+  , take, takeN, takeTill, takeWhile, takeWhile1, takeRemaining, takeUTF8, bytes, bytesCI
   , text
     -- * Numeric parsers
     -- ** Decimal
@@ -66,11 +66,21 @@ module Z.Data.Parser
   , timeZone
   , utcTime
   , zonedTime
+  -- * UUID
+  , uuid, decodeUUID
     -- * Misc
   , fail', failWithInput, unsafeLiftIO
+    -- * Specialized primitive parser
+  , decodeWord  , decodeWord64, decodeWord32, decodeWord16, decodeWord8
+  , decodeInt   , decodeInt64 , decodeInt32 , decodeInt16 , decodeInt8 , decodeDouble, decodeFloat
+  , decodeWordLE  , decodeWord64LE , decodeWord32LE , decodeWord16LE
+  , decodeIntLE   , decodeInt64LE , decodeInt32LE , decodeInt16LE , decodeDoubleLE , decodeFloatLE
+  , decodeWordBE  , decodeWord64BE , decodeWord32BE , decodeWord16BE
+  , decodeIntBE   , decodeInt64BE , decodeInt32BE , decodeInt16BE , decodeDoubleBE , decodeFloatBE
   ) where
 
 import           Z.Data.Parser.Base
 import           Z.Data.Parser.Numeric
 import           Z.Data.Parser.Time
-import           Prelude hiding (take, takeWhile)
+import           Z.Data.Parser.UUID
+import           Prelude hiding (take, takeWhile, decodeFloat)

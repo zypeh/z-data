@@ -40,7 +40,6 @@ import           Data.Bits
 import           Data.Foldable             (foldlM)
 import           Data.Hashable             (Hashable (..))
 import qualified Data.List                 as List
-import           Data.Primitive.PrimArray
 import           Data.Word
 import           Foreign.C.String
 import           GHC.CString
@@ -61,7 +60,6 @@ import           Prelude                   hiding (all, any, appendFile, break,
 import           System.IO.Unsafe          (unsafeDupablePerformIO)
 import           Test.QuickCheck.Arbitrary (Arbitrary (..), CoArbitrary (..))
 import           Text.Read                 (Read (..))
-import           Z.Data.Array
 import qualified Z.Data.Builder            as B
 import           Z.Data.JSON.Base          ((.!), (.:), (.=))
 import qualified Z.Data.JSON.Base          as JSON
@@ -103,7 +101,7 @@ newtype CBytes = CBytes
 
 -- | Construct a 'CBytes' from arbitrary array, result will be trimmed down to first @\\NUL@ byte if there's any.
 fromPrimArray :: PrimArray Word8 -> CBytes
-{-# INLINE fromPrimArray #-}
+{-# INLINABLE fromPrimArray #-}
 fromPrimArray arr = runST (do
     let l = case V.elemIndex 0 arr of
             Just i -> i
@@ -130,7 +128,7 @@ fromMutablePrimArray
     :: PrimMonad m
     => MutablePrimArray (PrimState m) Word8
     -> m CBytes
-{-# INLINE fromMutablePrimArray #-}
+{-# INLINABLE fromMutablePrimArray #-}
 fromMutablePrimArray marr = do
     let l = sizeofMutablePrimArray marr
     arr <- unsafeFreezePrimArray marr
@@ -213,6 +211,7 @@ pokeMBACBytes mba# i (CBytes pa) = do
         let l = sizeofPrimArray pa
         copyPrimArray (MutablePrimArray mba# :: MutablePrimArray RealWorld Word8) i pa 0 l
 
+-- | Index a 'CBytes' until a \\NUL terminator(or to the end of the array if there's none).
 indexBACBytes :: BA# Word8 -> Int -> CBytes
 {-# INLINE indexBACBytes #-}
 indexBACBytes ba# i = runST (do
@@ -234,30 +233,30 @@ instance T.Print CBytes where
     toUTF8BuilderP _ = T.stringUTF8 . show . unpack
 
 -- | JSON instances check if 'CBytes' is properly UTF8 encoded,
--- if it is, decode/encode it as 'T.Text', otherwise as an object with a base64 field.
+-- if it is, decode/encode it as 'T.Text', otherwise as an object with a @__base64@ field.
 --
 -- @
 -- > encodeText ("hello" :: CBytes)
 -- "\"hello\""
 -- > encodeText ("hello\\NUL" :: CBytes)     -- @\\NUL@ is encoded as C0 80, which is illegal UTF8
--- "{\"base64\":\"aGVsbG/AgA==\"}"
+-- "{\"__base64\":\"aGVsbG/AgA==\"}"
 -- @
 instance JSON.JSON CBytes where
     {-# INLINE fromValue #-}
     fromValue v = JSON.withText "Z.Data.CBytes" (pure . fromText) v
-                <|> JSON.withFlatMapR "Z.Data.CBytes" (\ o -> fromBytes <$> o .: "base64") v
+                <|> JSON.withFlatMapR "Z.Data.CBytes" (\ o -> fromBytes <$> o .: "__base64") v
     {-# INLINE toValue #-}
     toValue cbytes = case toTextMaybe cbytes of
         Just t  -> JSON.toValue t
-        Nothing -> JSON.object $ [ "base64" .= toBytes cbytes ]
+        Nothing -> JSON.object $ [ "__base64" .= toBytes cbytes ]
     {-# INLINE encodeJSON #-}
     encodeJSON cbytes = case toTextMaybe cbytes of
         Just t  -> JSON.encodeJSON t
-        Nothing -> JSON.object' $ "base64" .! toBytes cbytes
+        Nothing -> JSON.object' $ "__base64" .! toBytes cbytes
 
 -- | Concatenate two 'CBytes'.
 append :: CBytes -> CBytes -> CBytes
-{-# INLINABLE append #-}
+{-# INLINE append #-}
 append strA@(CBytes pa) strB@(CBytes pb)
     | lenA == 0 = strB
     | lenB == 0 = strA
@@ -461,12 +460,12 @@ length (CBytes pa) = sizeofPrimArray pa - 1
 
 -- | /O(1)/, convert to 'V.Bytes', which can be processed by vector combinators.
 toBytes :: CBytes -> V.Bytes
-{-# INLINABLE toBytes #-}
+{-# INLINE toBytes #-}
 toBytes (CBytes arr) = V.PrimVector arr 0 (sizeofPrimArray arr - 1)
 
 -- | /O(1)/, convert to 'V.Bytes' with its NULL terminator.
 toBytes' :: CBytes -> V.Bytes
-{-# INLINABLE toBytes' #-}
+{-# INLINE toBytes' #-}
 toBytes' (CBytes arr) = V.PrimVector arr 0 (sizeofPrimArray arr)
 
 -- | /O(n)/, convert from 'V.Bytes'
@@ -492,21 +491,21 @@ fromBytes v@(V.PrimVector arr s l)
 --
 -- Throw 'T.InvalidUTF8Exception' in case of invalid codepoint.
 toText :: HasCallStack => CBytes -> T.Text
-{-# INLINABLE toText #-}
+{-# INLINE toText #-}
 toText = T.validate . toBytes
 
 -- | /O(n)/, convert to 'T.Text' using UTF8 encoding assumption.
 --
 -- Return 'Nothing' in case of invalid codepoint.
 toTextMaybe :: CBytes -> Maybe T.Text
-{-# INLINABLE toTextMaybe #-}
+{-# INLINE toTextMaybe #-}
 toTextMaybe = T.validateMaybe . toBytes
 
 -- | /O(n)/, convert from 'T.Text',
 --
 -- Result will be trimmed down to first @\\NUL@ byte if there's any.
 fromText :: T.Text -> CBytes
-{-# INLINABLE fromText #-}
+{-# INLINE fromText #-}
 fromText = fromBytes . T.getUTF8Bytes
 
 -- | Write 'CBytes' \'s byte sequence to buffer.
@@ -514,19 +513,19 @@ fromText = fromBytes . T.getUTF8Bytes
 -- This function is different from 'T.Print' instance in that it directly write byte sequence without
 -- checking if it's UTF8 encoded.
 toBuilder :: CBytes -> B.Builder ()
-{-# INLINABLE toBuilder #-}
+{-# INLINE toBuilder #-}
 toBuilder = B.bytes . toBytes
 
 -- | Write 'CBytes' \'s byte sequence to buffer, with its NULL terminator.
 --
 toBuilder' :: CBytes -> B.Builder ()
-{-# INLINABLE toBuilder' #-}
+{-# INLINE toBuilder' #-}
 toBuilder' = B.bytes . toBytes'
 
 -- | Build a 'CBytes' with builder, will automatically be trimmed down to first @\\NUL@ byte if there's any,
 -- or append with one if there's none.
 buildCBytes :: B.Builder a -> CBytes
-{-# INLINABLE buildCBytes #-}
+{-# INLINE buildCBytes #-}
 buildCBytes b = fromBytes (B.build (b >> B.word8 0))
 
 --------------------------------------------------------------------------------

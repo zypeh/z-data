@@ -34,7 +34,8 @@ module Z.Data.Text.Base (
   , map', imap'
   , foldl', ifoldl'
   , foldr', ifoldr'
-  , concat, concatMap
+  , concat, concatR, concatMap
+  , shuffle, permutations
     -- ** Special folds
   , count, all, any
     -- ** Text display width
@@ -122,6 +123,7 @@ module Z.Data.Text.Base (
 import           Control.DeepSeq
 import           Control.Exception
 import           Control.Monad.ST
+import           Control.Monad.Primitive
 import           Control.Monad
 import           Data.Bits
 import           Data.Char                 hiding (toLower, toUpper, toTitle)
@@ -145,6 +147,7 @@ import           Z.Data.Text.UTF8Rewind
 import           Z.Data.Vector.Base        (Bytes, PrimVector(..), c_strlen)
 import qualified Z.Data.Vector.Base        as V
 import qualified Z.Data.Vector.Search      as V
+import           System.Random.Stateful    (StatefulGen)
 import           System.IO.Unsafe          (unsafeDupablePerformIO)
 
 import           Prelude                   hiding (concat, concatMap,
@@ -232,13 +235,13 @@ instance CI.FoldCase Text where
 -- | /O(n)/ Get the nth codepoint from 'Text', throw 'IndexOutOfTextRange'
 -- when out of bound.
 index :: HasCallStack => Text -> Int -> Char
-{-# INLINABLE index #-}
+{-# INLINE index #-}
 index t n = case t `indexMaybe` n of Nothing -> throw (IndexOutOfTextRange n callStack)
                                      Just x  -> x
 
 -- | /O(n)/ Get the nth codepoint from 'Text'.
 indexMaybe :: Text -> Int -> Maybe Char
-{-# INLINABLE indexMaybe #-}
+{-# INLINE indexMaybe #-}
 indexMaybe (Text (V.PrimVector ba s l)) n
     | n < 0 = Nothing
     | otherwise = go s 0
@@ -254,7 +257,7 @@ indexMaybe (Text (V.PrimVector ba s l)) n
 -- The index is only meaningful to the whole byte slice, if there's less than n codepoints,
 -- the index will point to next byte after the end.
 charByteIndex :: Text -> Int -> Int
-{-# INLINABLE charByteIndex #-}
+{-# INLINE charByteIndex #-}
 charByteIndex (Text (V.PrimVector ba s l)) n
     | n < 0 = s
     | otherwise = go s 0
@@ -268,13 +271,13 @@ charByteIndex (Text (V.PrimVector ba s l)) n
 -- | /O(n)/ Get the nth codepoint from 'Text' counting from the end,
 -- throw @IndexOutOfVectorRange n callStack@ when out of bound.
 indexR :: HasCallStack => Text -> Int -> Char
-{-# INLINABLE indexR #-}
+{-# INLINE indexR #-}
 indexR t n = case t `indexMaybeR` n of Nothing -> throw (V.IndexOutOfVectorRange n callStack)
                                        Just x  -> x
 
 -- | /O(n)/ Get the nth codepoint from 'Text' counting from the end.
 indexMaybeR :: Text -> Int -> Maybe Char
-{-# INLINABLE indexMaybeR #-}
+{-# INLINE indexMaybeR #-}
 indexMaybeR (Text (V.PrimVector ba s l)) n
     | n < 0 = Nothing
     | otherwise = go (s+l-1) 0
@@ -290,7 +293,7 @@ indexMaybeR (Text (V.PrimVector ba s l)) n
 -- The index is only meaningful to the whole byte slice, if there's less than n codepoints,
 -- the index will point to previous byte before the start.
 charByteIndexR :: Text -> Int -> Int
-{-# INLINABLE charByteIndexR #-}
+{-# INLINE charByteIndexR #-}
 charByteIndexR (Text (V.PrimVector ba s l)) n
     | n < 0 = s+l
     | otherwise = go (s+l-1) 0
@@ -519,12 +522,12 @@ unpackRFB (Text (V.PrimVector ba s l)) k z = go (s+l-1)
 
 -- | /O(1)/. Single char text.
 singleton :: Char -> Text
-{-# INLINABLE singleton #-}
+{-# INLINE singleton #-}
 singleton c = Text $ V.createN 4 $ \ marr -> encodeChar marr 0 c
 
 -- | /O(1)/. Empty text.
 empty :: Text
-{-# INLINABLE empty #-}
+{-# NOINLINE empty #-}
 empty = Text V.empty
 
 -- | /O(n)/. Copy a text from slice.
@@ -545,12 +548,12 @@ append ta tb = Text ( getUTF8Bytes ta `V.append` getUTF8Bytes tb )
 
 -- | /O(1)/ Test whether a text is empty.
 null :: Text -> Bool
-{-# INLINABLE null #-}
+{-# INLINE null #-}
 null (Text bs) = V.null bs
 
 -- |  /O(n)/ The char length of a text.
 length :: Text -> Int
-{-# INLINABLE length #-}
+{-# INLINE length #-}
 length (Text (V.PrimVector ba s l)) = go s 0
   where
     !end = s + l
@@ -609,6 +612,17 @@ imap' f (Text (V.PrimVector arr s l)) | l == 0 = empty
                 !marr' <- resizeMutablePrimArray marr siz'
                 go i' j' k' marr'
 
+
+-- | Shuffle a text using  <https://en.wikipedia.org/wiki/Fisher%E2%80%93Yates_shuffle Fisher-Yates> algorithm.
+shuffle :: (StatefulGen g m, PrimMonad m) => g -> Text -> m Text
+{-# INLINE shuffle #-}
+shuffle g t = fromVector <$> V.shuffle g (toVector t)
+
+-- | Generate all permutation of a text using <https://en.wikipedia.org/wiki/Heap%27s_algorithm Heap's algorithm>.
+permutations :: Text -> [Text]
+{-# INLINE permutations #-}
+permutations t = fromVector <$> V.permutations (toVector t)
+
 --------------------------------------------------------------------------------
 --
 -- Strict folds
@@ -665,6 +679,14 @@ concat :: [Text] -> Text
 concat = Text . V.concat . coerce
 {-# INLINE concat #-}
 
+-- | /O(n)/ Concatenate a list of text in reverse order, e.g. @concat ["hello, world"] == "worldhello"@
+--
+-- Note: 'concat' have to force the entire list to filter out empty text and calculate
+-- the length for allocation.
+concatR :: [Text] -> Text
+concatR = Text . V.concatR . coerce
+{-# INLINE concatR #-}
+
 -- | Map a function over a text and concatenate the results
 concatMap :: (Char -> Text) -> Text -> Text
 {-# INLINE concatMap #-}
@@ -716,8 +738,8 @@ all f (Text (V.PrimVector arr s l))
 --
 replicate :: Int -> Char -> Text
 {-# INLINE replicate #-}
-replicate 0 _ = empty
-replicate n c = Text (V.create siz (go 0))
+replicate n c | n <= 0 = empty
+              | otherwise = Text (V.create siz (go 0))
   where
     !csiz = encodeCharLength c
     !siz = n * csiz

@@ -4,6 +4,7 @@
 [![Linux Build Status](https://github.com/ZHaskell/z-data/workflows/ubuntu-ci/badge.svg)](https://github.com/ZHaskell/z-data/actions)
 [![macOS Build Status](https://github.com/ZHaskell/z-data/workflows/osx-ci/badge.svg)](https://github.com/ZHaskell/z-data/actions)
 [![Windows Build Status](https://github.com/ZHaskell/z-data/workflows/win-ci/badge.svg)](https://github.com/ZHaskell/z-data/actions)
+[![ARM Build Status](https://img.shields.io/drone/build/ZHaskell/z-data?label=arm-ci)](https://cloud.drone.io/ZHaskell/z-data)
 [![Gitter chat](https://badges.gitter.im/gitterHQ/gitter.svg)](https://gitter.im/Z-Haskell/community)
 <a href="https://opencollective.com/zhaskell/donate" target="_blank">
   <img src="https://opencollective.com/zhaskell/donate/button@2x.png?color=blue" width=128 />
@@ -24,7 +25,9 @@ This package is part of [ZHaskell](https://z.haskell.world) project, providing b
     * Windows users can get them via [chocolatey](//chocolatey.org): `choco install ghc cabal`.
     * Ubuntu users are recommended to use this [ppa](//launchpad.net/~hvr/+archive/ubuntu/ghc).
 * A working C/C++ compiler support C++11, here're some options:
-    * Mac users can use the `clang` comes with the [XCode Command Line Tools](https://developer.apple.com/downloads).
+    * Mac users can use the `clang` comes with the [XCode](https://developer.apple.com/xcode/) or [XCode Command Line Tools](https://developer.apple.com/downloads):
+        * You can install XCode from app store, or XCode Command Line Tools with `sudo xcode-select --install`.
+        * If you came across compiling issues like [this](https://stackoverflow.com/questions/58628377/catalina-c-using-cmath-headers-yield-error-no-member-named-signbit-in-th), consider removing redundant SDKs, e.g. `sudo rm -rf /Library/Developer/CommandLineTools/SDKs`
     * Windows users can use the mingw's one comes with GHC, you can use it by adding `your_path_to_ghc\mingw\bin` to your `PATH`.
     * Ubuntu users can install `gcc/g++` by running `sudo apt install build-essential`.
 * Tests need [hspec-discover](https://hackage.haskell.org/package/hspec-discover).

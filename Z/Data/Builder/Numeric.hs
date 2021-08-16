@@ -37,6 +37,7 @@ module Z.Data.Builder.Numeric (
   , i2wDec, i2wHex, i2wHexUpper
   , countDigits
   , c_intWith, hs_intWith
+  , quotRem10
 ) where
 
 import           Control.Monad
@@ -84,6 +85,7 @@ defaultIFormat :: IFormat
 {-# INLINE defaultIFormat #-}
 defaultIFormat = IFormat 0 NoPadding False
 
+-- | Padding format.
 data Padding = NoPadding | RightSpacePadding | LeftSpacePadding | ZeroPadding deriving (Show, Eq, Ord, Enum)
 
 instance Arbitrary Padding where
@@ -123,6 +125,14 @@ intWith = hs_intWith
 {-# RULES "intWith'/Word16"  intWith = c_intWith  :: IFormat -> Word16  -> Builder () #-}
 {-# RULES "intWith'/Word32"  intWith = c_intWith  :: IFormat -> Word32  -> Builder () #-}
 {-# RULES "intWith'/Word64"  intWith = c_intWith  :: IFormat -> Word64  -> Builder () #-}
+{-# RULES "intWith'/CShort"  intWith = c_intWith  :: IFormat -> CShort  -> Builder () #-}
+{-# RULES "intWith'/CUShort" intWith = c_intWith  :: IFormat -> CUShort -> Builder () #-}
+{-# RULES "intWith'/CInt"    intWith = c_intWith  :: IFormat -> CInt    -> Builder () #-}
+{-# RULES "intWith'/CUInt"   intWith = c_intWith  :: IFormat -> CUInt   -> Builder () #-}
+{-# RULES "intWith'/CLong"   intWith = c_intWith  :: IFormat -> CLong   -> Builder () #-}
+{-# RULES "intWith'/CULong"  intWith = c_intWith  :: IFormat -> CULong  -> Builder () #-}
+{-# RULES "intWith'/CLLong"  intWith = c_intWith  :: IFormat -> CLLong  -> Builder () #-}
+{-# RULES "intWith'/CULLong" intWith = c_intWith  :: IFormat -> CULLong -> Builder () #-}
 
 -- | Internal formatting backed by C FFI, it must be used with type smaller than 'Word64'.
 --
@@ -139,7 +149,7 @@ c_intWith (IFormat{..}) = \ x ->
     pad = case padding of NoPadding          -> 0
                           RightSpacePadding  -> 1
                           LeftSpacePadding   -> 2
-                          ZeroPadding        -> 3
+                          _                  -> 3
 
 -- | Internal formatting in haskell, it can be used with any bounded integral type.
 --
@@ -332,9 +342,8 @@ writePositiveDec marr off0 ds = go (off0 + ds - 1)
         | v < 10    = writePrimArray marr off (i2wDec v)
         | otherwise = write2 off v
     write2 off i0 = do
-        let i = fromIntegral i0; j = i + i
-        writePrimArray marr off $ indexOffPtr decDigitTable (j + 1)
-        writePrimArray marr (off - 1) $ indexOffPtr decDigitTable j
+        let i = fromIntegral i0;
+        writePrimWord8ArrayAs marr (off-1) $ indexOffPtr decDigitTable i
 
 
 --------------------------------------------------------------------------------
@@ -456,13 +465,13 @@ countDigits v0
 
 -- | Decimal digit to ASCII digit.
 i2wDec :: (Integral a) => a -> Word8
-{-# INLINE i2wDec #-}
+{-# INLINABLE i2wDec #-}
 {-# SPECIALIZE INLINE i2wDec :: Int -> Word8 #-}
 i2wDec v = DIGIT_0 + fromIntegral v
 
 -- | Hexadecimal digit to ASCII char.
 i2wHex :: (Integral a) => a -> Word8
-{-# INLINE i2wHex #-}
+{-# INLINABLE i2wHex #-}
 {-# SPECIALIZE INLINE i2wHex :: Int -> Word8 #-}
 i2wHex v
     | v <= 9    = DIGIT_0 + fromIntegral v
@@ -470,7 +479,7 @@ i2wHex v
 
 -- | Hexadecimal digit to UPPERCASED ASCII char.
 i2wHexUpper :: (Integral a) => a -> Word8
-{-# INLINE i2wHexUpper #-}
+{-# INLINABLE i2wHexUpper #-}
 {-# SPECIALIZE INLINE i2wHexUpper :: Int -> Word8 #-}
 i2wHexUpper v
     | v <= 9    = DIGIT_0 + fromIntegral v
@@ -495,7 +504,17 @@ i2wHexUpper v
 -- @
 --
 hex :: forall a. (FiniteBits a, Integral a) => a -> Builder ()
-{-# INLINE hex #-}
+{-# INLINABLE hex #-}
+{-# SPECIALIZE INLINE hex :: Int -> Builder () #-}
+{-# SPECIALIZE INLINE hex :: Int8 -> Builder () #-}
+{-# SPECIALIZE INLINE hex :: Int16 -> Builder () #-}
+{-# SPECIALIZE INLINE hex :: Int32 -> Builder () #-}
+{-# SPECIALIZE INLINE hex :: Int64 -> Builder () #-}
+{-# SPECIALIZE INLINE hex :: Word -> Builder () #-}
+{-# SPECIALIZE INLINE hex :: Word8 -> Builder () #-}
+{-# SPECIALIZE INLINE hex :: Word16 -> Builder () #-}
+{-# SPECIALIZE INLINE hex :: Word32 -> Builder () #-}
+{-# SPECIALIZE INLINE hex :: Word64 -> Builder () #-}
 hex w = writeN hexSiz (go w (hexSiz-2))
   where
     bitSiz = finiteBitSize (undefined :: a)
@@ -517,7 +536,17 @@ hex w = writeN hexSiz (go w (hexSiz-2))
 
 -- | The UPPERCASED version of 'hex'.
 hexUpper :: forall a. (FiniteBits a, Integral a) => a -> Builder ()
-{-# INLINE hexUpper #-}
+{-# INLINABLE hexUpper #-}
+{-# SPECIALIZE INLINE hexUpper :: Int -> Builder () #-}
+{-# SPECIALIZE INLINE hexUpper :: Int8 -> Builder () #-}
+{-# SPECIALIZE INLINE hexUpper :: Int16 -> Builder () #-}
+{-# SPECIALIZE INLINE hexUpper :: Int32 -> Builder () #-}
+{-# SPECIALIZE INLINE hexUpper :: Int64 -> Builder () #-}
+{-# SPECIALIZE INLINE hexUpper :: Word -> Builder () #-}
+{-# SPECIALIZE INLINE hexUpper :: Word8 -> Builder () #-}
+{-# SPECIALIZE INLINE hexUpper :: Word16 -> Builder () #-}
+{-# SPECIALIZE INLINE hexUpper :: Word32 -> Builder () #-}
+{-# SPECIALIZE INLINE hexUpper :: Word64 -> Builder () #-}
 hexUpper w = writeN hexSiz (go w (hexSiz-2))
   where
     bitSiz = finiteBitSize (undefined :: a)
@@ -601,7 +630,7 @@ positiveSciToDigits sci =
     then ([0], 0)
     else case c of
 #ifdef INTEGER_GMP
-        (S# i#) -> goI (I# i#) 0 []
+        (S# i#) -> goI (W# (int2Word# i#)) 0 []
 #endif
         _ -> go c 0 []
   where
@@ -614,10 +643,22 @@ positiveSciToDigits sci =
     go i !n ds = case i `quotRemInteger` 10 of
                      (# q, r #) -> let !d = fromIntegral r in go q (n+1) (d:ds)
 #ifdef INTEGER_GMP
-    goI :: Int -> Int -> [Int] -> ([Int], Int)
+    goI :: Word -> Int -> [Int] -> ([Int], Int)
     goI 0 !n ds = let !ne = n + e in (ds, ne)
-    goI i !n ds = case i `quotRem` 10 of (q, !r) -> goI q (n+1) (r:ds)
+    goI i !n ds = case quotRem10 i of (q, r) -> let !d = fromIntegral r in goI q (n+1) (d:ds)
 #endif
+
+-- | A faster `quotRem` by 10.
+quotRem10 :: Word -> (Word, Word)
+{-# INLINE quotRem10 #-}
+quotRem10 (W# w#) =
+    let w'# = dquot10# w#
+    in (W# w'#, W# (w# `minusWord#` (w'# `timesWord#` 10##)))
+  where
+    dquot10# :: Word# -> Word#
+    dquot10# w =
+        let !(# rdx, _ #) = w `timesWord2#` 0xCCCCCCCCCCCCCCCD##
+        in rdx `uncheckedShiftRL#` 3#
 
 -- | Worker function to do formatting.
 doFmt :: FFormat
@@ -626,8 +667,11 @@ doFmt :: FFormat
       -> Builder ()
 {-# INLINABLE doFmt #-}
 doFmt format decs (is, e) = case format of
-    Generic -> doFmt (if e < 0 || e > 7 then Exponent else Fixed) decs (is,e)
-    Exponent -> case decs of
+    Generic -> if e < 0 || e > 7 then doFmtExponent else doFmtFixed
+    Exponent -> doFmtExponent
+    _ -> doFmtFixed
+  where
+    doFmtExponent = case decs of
         Nothing -> case is of
             [0]     -> "0.0e0"
             [i]     -> encodeDigit i >> ".0e" >> int (e-1)
@@ -664,7 +708,7 @@ doFmt format decs (is, e) = case format of
                     encodeDigits ds'
                     encodePrim LETTER_e
                     int (e-1+ei)
-    Fixed -> case decs of
+    doFmtFixed = case decs of
         Nothing
             | e <= 0    -> do
                 "0."
@@ -684,7 +728,7 @@ doFmt format decs (is, e) = case format of
                         d:ds' = if ei > 0 then is' else 0:is'
                     encodeDigit d
                     (unless (List.null ds') $ encodePrim DOT >> encodeDigits ds')
-  where
+
     encodeDigit = word8 . i2wDec
 
     encodeDigits = mapM_ encodeDigit
@@ -715,7 +759,7 @@ foreign import ccall unsafe "static grisu3" c_grisu3
 
 -- | Decimal encoding of a 'Double', note grisu only handles strictly positive finite numbers.
 grisu3 :: Double -> ([Int], Int)
-{-# INLINE grisu3 #-}
+{-# INLINABLE grisu3 #-}
 grisu3 d = unsafePerformIO $ do
     (MutableByteArray pBuf) <- newByteArray GRISU3_DOUBLE_BUF_LEN
     (len, (e, success)) <- allocPrimUnsafe $ \ pLen ->
@@ -739,7 +783,7 @@ foreign import ccall unsafe "static grisu3_sp" c_grisu3_sp
 
 -- | Decimal encoding of a 'Float', note grisu3_sp only handles strictly positive finite numbers.
 grisu3_sp :: Float -> ([Int], Int)
-{-# INLINE grisu3_sp #-}
+{-# INLINABLE grisu3_sp #-}
 grisu3_sp d = unsafePerformIO $ do
     (MutableByteArray pBuf) <- newByteArray GRISU3_SINGLE_BUF_LEN
     (len, (e, success)) <- allocPrimUnsafe $ \ pLen ->
