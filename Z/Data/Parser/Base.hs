@@ -666,6 +666,16 @@ skipWhile p =
                     in if V.null rest then Partial (go s) else k s () rest
         in go s0
 
+-- | Skip a parser zero or more times, CPSed
+many_ :: Parser a -> Parser ()
+{-# INLINE many_ #-}
+many_ (Parser f) = Parser go
+  where
+    go k s inp = case f k s inp of
+        Success r' inp'  -> go k s r' inp'
+        Failure err inp' -> Failure err inp'
+        Partial _        -> error "Z.Data.Parser.Base.many_: impossible"
+
 -- | Skip over white space using 'isSpace'.
 --
 skipSpaces :: Parser ()
